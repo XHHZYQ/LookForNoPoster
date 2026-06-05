@@ -186,17 +186,50 @@
     return noPoster || noTitle || noDescription;
   }
 
-  async function clickNextAndWait() {
+  function getPagerNumbers() {
+    return Array.from(document.querySelectorAll(".el-pager .number"))
+      .map((node) => ({
+        node,
+        page: Number.parseInt(textOf(node), 10)
+      }))
+      .filter((item) => Number.isFinite(item.page));
+  }
+
+  function findPagerNumber(page) {
+    return getPagerNumbers().find((item) => item.page === page)?.node || null;
+  }
+
+  function findPagerMore(targetPage) {
+    const numbers = getPagerNumbers().map((item) => item.page);
+    const minPage = Math.min(...numbers);
+    const maxPage = Math.max(...numbers);
+    const quickPrev = document.querySelector(".el-pager .el-icon.more.btn-quickprev.el-icon-more");
+    const quickNext = document.querySelector(".el-pager .el-icon.more.btn-quicknext.el-icon-more");
+
+    if (targetPage < minPage && quickPrev) return quickPrev;
+    if (targetPage > maxPage && quickNext) return quickNext;
+
+    return quickPrev || quickNext || null;
+  }
+
+  async function waitForPagerChange(previousPagerText) {
+    await waitFor(() => {
+      const pagerText = textOf(document.querySelector(".el-pager"));
+      return pagerText && pagerText !== previousPagerText;
+    }, "分页页码展开");
+  }
+
+  async function clickPageAndWait(page) {
     const previousSignature = getListSignature();
-    const next = document.querySelector(".btn-next");
-    if (!next || next.classList.contains("disabled")) {
+    const pageNode = findPagerNumber(page);
+    if (!pageNode) {
       return false;
     }
-    next.click();
+    pageNode.click();
     await waitFor(() => {
       const signature = getListSignature();
-      return signature && signature !== previousSignature;
-    }, "点击下一页后列表内容变化");
+      return getDomActivePage() === page && signature && signature !== previousSignature;
+    }, `点击第 ${page} 页后列表内容变化`);
     await waitForListReady();
     return true;
   }
@@ -211,18 +244,29 @@
       return;
     }
 
-    while (domPage < targetPage) {
-      const moved = await clickNextAndWait();
-      if (!moved) {
-        throw new Error(`无法跳转到第 ${targetPage} 页，当前已到最后一页 ${domPage}`);
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const pageNode = findPagerNumber(targetPage);
+      if (pageNode) {
+        const moved = await clickPageAndWait(targetPage);
+        if (!moved) {
+          throw new Error(`点击第 ${targetPage} 页失败`);
+        }
+        await storageSet({
+          currentPage: targetPage,
+          ...(resetRow ? { currentRow: 1 } : {}),
+          statusText: `已跳转到第 ${targetPage} 页`
+        });
+        return;
       }
-      domPage += 1;
-      await storageSet({
-        currentPage: domPage,
-        ...(resetRow ? { currentRow: 1 } : {}),
-        statusText: `已跳转到第 ${domPage} 页`
-      });
+
+      const more = findPagerMore(targetPage);
+      if (!more) break;
+      const previousPagerText = textOf(document.querySelector(".el-pager"));
+      more.click();
+      await waitForPagerChange(previousPagerText);
     }
+
+    throw new Error(`无法找到第 ${targetPage} 页的分页按钮`);
   }
 
   async function returnToList() {
@@ -328,17 +372,7 @@
         }
 
         await storageSet({ statusText: `第 ${page} 页完成，准备翻页`, currentRow: 1 });
-        const moved = await clickNextAndWait();
-        if (!moved) {
-          await storageSet({
-            running: false,
-            paused: false,
-            completed: true,
-            currentPage: page,
-            statusText: "已完成全部分页"
-          });
-          return;
-        }
+        await navigateToPage(page + 1);
         await storageSet({ currentPage: page + 1, currentRow: 1 });
         nextStartRow = 1;
       }
