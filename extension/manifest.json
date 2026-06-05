@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Look For No Poster",
+  "description": "查找报名表中未提交海报、作品标题或作品简介缺失的学生，并导出 Excel。",
+  "version": "1.0.0",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "查找未提交海报"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "xlsx-export.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

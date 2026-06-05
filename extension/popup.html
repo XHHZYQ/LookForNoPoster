@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>查找未提交海报</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="panel">
+      <h1>未提交海报检查</h1>
+
+      <section class="inputs">
+        <label>
+          <span>继续页码</span>
+          <input id="pageInput" type="number" min="1" step="1">
+        </label>
+        <label>
+          <span>继续行号</span>
+          <input id="rowInput" type="number" min="1" step="1">
+        </label>
+      </section>
+
+      <section class="actions">
+        <button id="startBtn" type="button" class="primary">开始</button>
+        <button id="pauseBtn" type="button">暂停</button>
+        <button id="exportBtn" type="button">导出 Excel</button>
+      </section>
+
+      <section class="status">
+        <div><span>状态</span><strong id="statusText">-</strong></div>
+        <div><span>当前页码</span><strong id="currentPage">-</strong></div>
+        <div><span>当前行</span><strong id="currentRow">-</strong></div>
+        <div><span>团队名称</span><strong id="teamName">-</strong></div>
+        <div><span>指导老师</span><strong id="teacherName">-</strong></div>
+        <div><span>已采集</span><strong id="recordCount">0</strong></div>
+        <div><span>已导出行</span><strong id="exportCursor">0</strong></div>
+        <p id="lastError"></p>
+      </section>
+    </main>
+
+    <script src="xlsx-export.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
