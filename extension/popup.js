@@ -19,6 +19,7 @@ const els = {
   startBtn: document.querySelector("#startBtn"),
   pauseBtn: document.querySelector("#pauseBtn"),
   exportBtn: document.querySelector("#exportBtn"),
+  clearBtn: document.querySelector("#clearBtn"),
   statusText: document.querySelector("#statusText"),
   currentPage: document.querySelector("#currentPage"),
   currentRow: document.querySelector("#currentRow"),
@@ -42,6 +43,12 @@ function setStorageState(patch) {
     const current = await getStorageState();
     const next = { ...current, ...patch };
     chrome.storage.local.set({ [STORAGE_KEY]: next }, () => resolve(next));
+  });
+}
+
+function clearStorage() {
+  return new Promise((resolve) => {
+    chrome.storage.local.clear(() => resolve());
   });
 }
 
@@ -120,6 +127,11 @@ els.exportBtn.addEventListener("click", async () => {
   window.NoPosterXlsx.downloadNoPosterXlsx(state.records);
   await setStorageState({ exportCursor: state.records.length, statusText: `已导出 ${state.records.length} 条数据` });
   await refresh();
+});
+
+els.clearBtn.addEventListener("click", async () => {
+  await clearStorage();
+  render(DEFAULT_STATE);
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {

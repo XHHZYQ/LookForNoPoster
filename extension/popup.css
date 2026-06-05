@@ -46,7 +46,7 @@ input {
 
 .actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin-bottom: 14px;
 }
@@ -65,6 +65,11 @@ button.primary {
   border-color: #1d70f2;
   background: #1d70f2;
   color: #fff;
+}
+
+button.danger {
+  border-color: #d92d20;
+  color: #b42318;
 }
 
 button:disabled {
