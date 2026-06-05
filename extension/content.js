@@ -110,7 +110,11 @@
     return Array.from(tbody.querySelectorAll(":scope > .el-table__row"));
   }
 
-  function getCurrentPage() {
+  function getListSignature() {
+    return getListRows().map((row) => textOf(row)).join("|");
+  }
+
+  function getDomActivePage() {
     const active = document.querySelector(".el-pager .number.active");
     const page = Number.parseInt(textOf(active), 10);
     return Number.isFinite(page) ? page : 1;
@@ -182,22 +186,42 @@
     return noPoster || noTitle || noDescription;
   }
 
-  async function navigateToPage(targetPage) {
-    if (!targetPage || targetPage < 1) return;
+  async function clickNextAndWait() {
+    const previousSignature = getListSignature();
+    const next = document.querySelector(".btn-next");
+    if (!next || next.classList.contains("disabled")) {
+      return false;
+    }
+    next.click();
+    await waitFor(() => {
+      const signature = getListSignature();
+      return signature && signature !== previousSignature;
+    }, "点击下一页后列表内容变化");
     await waitForListReady();
-    let currentPage = getCurrentPage();
-    await storageSet({ currentPage });
+    return true;
+  }
 
-    while (currentPage < targetPage) {
-      const next = document.querySelector(".btn-next");
-      if (!next || next.classList.contains("disabled")) {
-        throw new Error(`无法跳转到第 ${targetPage} 页，当前已到最后一页 ${currentPage}`);
+  async function navigateToPage(targetPage, options = {}) {
+    if (!targetPage || targetPage < 1) return;
+    const resetRow = options.resetRow !== false;
+    await waitForListReady();
+    let domPage = getDomActivePage();
+    if (targetPage === domPage) {
+      await storageSet({ currentPage: targetPage, ...(resetRow ? { currentRow: 1 } : {}) });
+      return;
+    }
+
+    while (domPage < targetPage) {
+      const moved = await clickNextAndWait();
+      if (!moved) {
+        throw new Error(`无法跳转到第 ${targetPage} 页，当前已到最后一页 ${domPage}`);
       }
-      next.click();
-      await waitFor(() => getCurrentPage() !== currentPage, "翻页后页码变化");
-      await waitForListReady();
-      currentPage = getCurrentPage();
-      await storageSet({ currentPage, currentRow: 1, statusText: `已跳转到第 ${currentPage} 页` });
+      domPage += 1;
+      await storageSet({
+        currentPage: domPage,
+        ...(resetRow ? { currentRow: 1 } : {}),
+        statusText: `已跳转到第 ${domPage} 页`
+      });
     }
   }
 
@@ -207,15 +231,16 @@
     await waitForBackToList();
   }
 
-  async function processCurrentPage(startRow) {
-    await waitForListReady();
-    const currentPage = getCurrentPage();
+  async function processCurrentPage(logicalPage, startRow) {
+    await navigateToPage(logicalPage, { resetRow: false });
+    const currentPage = logicalPage;
     let rowIndex = Math.max(1, startRow || 1);
 
     while (true) {
       const state = await storageGet();
       if (!state.running || state.paused) return "paused";
 
+      await navigateToPage(currentPage, { resetRow: false });
       const rows = await waitForListReady();
       if (rowIndex > rows.length) return "pageDone";
 
@@ -266,7 +291,7 @@
 
       await returnToList();
       rowIndex += 1;
-      await storageSet({ currentPage: getCurrentPage(), currentRow: rowIndex });
+      await storageSet({ currentPage, currentRow: rowIndex });
     }
   }
 
@@ -284,10 +309,12 @@
       let nextStartRow = startRow || 1;
 
       while (true) {
-        const result = await processCurrentPage(nextStartRow);
+        const stateBeforePage = await storageGet();
+        const page = stateBeforePage.currentPage || startPage || 1;
+        const result = await processCurrentPage(page, nextStartRow);
         if (result === "paused") return;
 
-        const page = getCurrentPage();
+        await navigateToPage(page, { resetRow: false });
         const next = document.querySelector(".btn-next");
         if (!next || next.classList.contains("disabled")) {
           await storageSet({
@@ -301,10 +328,18 @@
         }
 
         await storageSet({ statusText: `第 ${page} 页完成，准备翻页`, currentRow: 1 });
-        next.click();
-        await waitFor(() => getCurrentPage() !== page, "点击下一页后页码变化");
-        await waitForListReady();
-        await storageSet({ currentPage: getCurrentPage(), currentRow: 1 });
+        const moved = await clickNextAndWait();
+        if (!moved) {
+          await storageSet({
+            running: false,
+            paused: false,
+            completed: true,
+            currentPage: page,
+            statusText: "已完成全部分页"
+          });
+          return;
+        }
+        await storageSet({ currentPage: page + 1, currentRow: 1 });
         nextStartRow = 1;
       }
     } catch (error) {
