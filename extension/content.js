@@ -135,24 +135,12 @@
       .find((node) => textOf(node) === expected || textOf(node) === `${label}:`);
   }
 
-  function getFieldContainer(label) {
-    const labelNode = findFieldLabel(label);
-    return labelNode ? labelNode.parentElement : null;
-  }
-
   function getFieldValue(label) {
     const labelNode = findFieldLabel(label);
     if (!labelNode) return "";
     const span = Array.from(labelNode.parentElement?.children || [])
       .find((node) => node !== labelNode && node.tagName === "SPAN");
     return textOf(span);
-  }
-
-  function fieldHasPreview(label) {
-    const container = getFieldContainer(label);
-    if (!container) return false;
-    return Array.from(container.querySelectorAll("a, span, button"))
-      .some((node) => textOf(node) === "预览");
   }
 
   function getSectionByTitle(title) {
@@ -170,20 +158,14 @@
     return textOf(firstRow?.querySelectorAll("td .cell")[index]);
   }
 
-  function collectEntryRecord() {
+  function collectEntryRecord(registrationId) {
     return {
+      registrationId,
       teamName: getFieldValue("团队名称"),
       studentName: getFirstMemberCell("姓名"),
       schoolName: getFirstMemberCell("学校全称"),
       teacherName: getFieldValue("姓名中文")
     };
-  }
-
-  function entryIsIncomplete() {
-    const noPoster = !fieldHasPreview("参赛海报");
-    const noTitle = !getFieldValue("作品标题");
-    const noDescription = !getFieldValue("作品简介");
-    return noPoster || noTitle || noDescription;
   }
 
   function getPagerNumbers() {
@@ -289,6 +271,7 @@
       if (rowIndex > rows.length) return "pageDone";
 
       const row = rows[rowIndex - 1];
+      const registrationId = getRowCellText(row, 0);
       const listTeamName = getRowCellText(row, 1);
       const listTeacherName = getRowCellText(row, 2);
       await storageSet({
@@ -311,25 +294,16 @@
       firstRound.click();
       await waitForEntryReady();
 
-      const record = collectEntryRecord();
-      const shouldExport = entryIsIncomplete();
-      if (shouldExport) {
-        const latest = await storageGet();
-        const key = [record.teamName, record.studentName, record.schoolName, record.teacherName].join("||");
-        const exists = latest.records.some((item) => [item.teamName, item.studentName, item.schoolName, item.teacherName].join("||") === key);
-        if (!exists) {
-          await storageSet({
-            records: [...latest.records, record],
-            teamName: record.teamName,
-            teacherName: record.teacherName,
-            statusText: `已记录：${record.teamName || "未命名团队"}`
-          });
-        }
-      } else {
+      const record = collectEntryRecord(registrationId);
+      const latest = await storageGet();
+      const key = [record.registrationId, record.teamName, record.studentName, record.schoolName, record.teacherName].join("||");
+      const exists = latest.records.some((item) => [item.registrationId, item.teamName, item.studentName, item.schoolName, item.teacherName].join("||") === key);
+      if (!exists) {
         await storageSet({
+          records: [...latest.records, record],
           teamName: record.teamName,
           teacherName: record.teacherName,
-          statusText: `已跳过：${record.teamName || "未命名团队"}`
+          statusText: `已记录：${record.teamName || "未命名团队"}`
         });
       }
 

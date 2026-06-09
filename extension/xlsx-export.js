@@ -158,10 +158,11 @@
   }
 
   function createNoPosterXlsxBlob(records) {
-    const headers = ["团队名称", "学生姓名", "学校全称", "指导教师"];
+    const headers = ["报名ID", "团队名称", "学生姓名", "学校全称", "指导教师"];
     const rows = [
       headers,
       ...records.map((item) => [
+        item.registrationId || "",
         item.teamName || "",
         item.studentName || "",
         item.schoolName || "",
