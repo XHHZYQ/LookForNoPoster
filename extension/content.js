@@ -163,7 +163,9 @@
       registrationId,
       teamName: getFieldValue("团队名称"),
       studentName: getFirstMemberCell("姓名"),
+      grade: getFirstMemberCell("年级"),
       schoolName: getFirstMemberCell("学校全称"),
+      guardianPhone: getFirstMemberCell("监护人手机"),
       teacherName: getFieldValue("姓名中文")
     };
   }
@@ -181,17 +183,42 @@
     return getPagerNumbers().find((item) => item.page === page)?.node || null;
   }
 
+  function getPagerItemPage(node) {
+    const page = Number.parseInt(textOf(node), 10);
+    return Number.isFinite(page) ? page : null;
+  }
+
+  function getNearestPagerPage(items, startIndex, step) {
+    for (let index = startIndex + step; index >= 0 && index < items.length; index += step) {
+      const page = getPagerItemPage(items[index]);
+      if (page !== null) return page;
+    }
+    return null;
+  }
+
+  function getPagerMoreRange(moreNode) {
+    const items = Array.from(document.querySelectorAll(".el-pager > *"));
+    const index = items.indexOf(moreNode);
+    if (index < 0) return null;
+    return {
+      left: getNearestPagerPage(items, index, -1),
+      right: getNearestPagerPage(items, index, 1)
+    };
+  }
+
+  function isTargetBetweenMoreSides(targetPage, moreNode) {
+    const range = getPagerMoreRange(moreNode);
+    return range?.left !== null && range?.right !== null && targetPage > range.left && targetPage < range.right;
+  }
+
   function findPagerMore(targetPage) {
-    const numbers = getPagerNumbers().map((item) => item.page);
-    const minPage = Math.min(...numbers);
-    const maxPage = Math.max(...numbers);
     const quickPrev = document.querySelector(".el-pager .el-icon.more.btn-quickprev.el-icon-more");
     const quickNext = document.querySelector(".el-pager .el-icon.more.btn-quicknext.el-icon-more");
 
-    if (targetPage < minPage && quickPrev) return quickPrev;
-    if (targetPage > maxPage && quickNext) return quickNext;
+    if (quickPrev && isTargetBetweenMoreSides(targetPage, quickPrev)) return quickPrev;
+    if (quickNext && isTargetBetweenMoreSides(targetPage, quickNext)) return quickNext;
 
-    return quickPrev || quickNext || null;
+    return quickPrev || quickNext;
   }
 
   async function waitForPagerChange(previousPagerText) {
@@ -242,7 +269,6 @@
       }
 
       const more = findPagerMore(targetPage);
-      if (!more) break;
       const previousPagerText = textOf(document.querySelector(".el-pager"));
       more.click();
       await waitForPagerChange(previousPagerText);
