@@ -129,6 +129,11 @@
       .find((node) => isVisible(node) && textOf(node) === label);
   }
 
+  function hasSecondRoundButton(row) {
+    const actionCell = row.querySelector("td:last-child") || row;
+    return Boolean(exactButton(actionCell, "复赛"));
+  }
+
   function findFieldLabel(label) {
     const expected = `${label}：`;
     return Array.from(document.querySelectorAll(".itemttt"))
@@ -166,7 +171,8 @@
       grade: getFirstMemberCell("年级"),
       schoolName: getFirstMemberCell("学校全称"),
       guardianPhone: getFirstMemberCell("监护人手机"),
-      teacherName: getFieldValue("姓名中文")
+      teacherName: getFieldValue("姓名中文"),
+      enteredSecondRound: false
     };
   }
 
@@ -300,6 +306,7 @@
       const registrationId = getRowCellText(row, 0);
       const listTeamName = getRowCellText(row, 1);
       const listTeacherName = getRowCellText(row, 2);
+      const enteredSecondRound = hasSecondRoundButton(row);
       await storageSet({
         currentPage,
         currentRow: rowIndex,
@@ -321,6 +328,7 @@
       await waitForEntryReady();
 
       const record = collectEntryRecord(registrationId);
+      record.enteredSecondRound = enteredSecondRound;
       const latest = await storageGet();
       const key = [record.registrationId, record.teamName, record.studentName, record.schoolName, record.teacherName].join("||");
       const exists = latest.records.some((item) => [item.registrationId, item.teamName, item.studentName, item.schoolName, item.teacherName].join("||") === key);

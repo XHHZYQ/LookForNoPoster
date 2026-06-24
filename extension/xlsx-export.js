@@ -158,7 +158,7 @@
   }
 
   function createNoPosterXlsxBlob(records) {
-    const headers = ["报名ID", "团队名称", "学生姓名", "年级", "学校全称", "指导教师", "监护人手机"];
+    const headers = ["报名ID", "团队名称", "学生姓名", "年级", "学校全称", "指导教师", "监护人手机", "是否进入复赛"];
     const rows = [
       headers,
       ...records.map((item) => [
@@ -168,7 +168,8 @@
         item.grade || "",
         item.schoolName || "",
         item.teacherName || "",
-        item.guardianPhone || ""
+        item.guardianPhone || "",
+        item.enteredSecondRound ? "是" : "否"
       ])
     ];
     const fileMap = {
